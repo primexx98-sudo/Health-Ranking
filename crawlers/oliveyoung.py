@@ -1,9 +1,41 @@
-from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from playwright.sync_api import sync_playwright
+from playwright_stealth import stealth_sync
 from .config import PLATFORMS, TIMEOUT, TOP_N
-from .base import new_page, extract_text, extract_link, clean_price, save_screenshot
+from .base import new_page, clean_price, save_screenshot
 
 CFG = PLATFORMS["oliveyoung"]
 BASE_URL = "https://www.oliveyoung.co.kr"
+
+_JS = """
+() => {
+    const selectors = [
+        '#totalPrdList > li', '.prd-list > li',
+        '[class*="prdList"] > li', '[class*="goodsList"] > li'
+    ];
+
+    let items = [];
+    for (const sel of selectors) {
+        items = Array.from(document.querySelectorAll(sel));
+        if (items.length >= 5) break;
+    }
+
+    if (items.length === 0) return { error: 'no_products' };
+
+    return {
+        items: Array.from(items).slice(0, 10).map((li, idx) => {
+            const link    = li.querySelector('a[href*="goodsNo"], a[href]');
+            const price   = (li.innerText.match(/([\\d,]+)원/) || [])[0] || '';
+            const rankEl  = li.querySelector('[class*="rank"i], [class*="badge"i]');
+            const rank    = rankEl ? (parseInt(rankEl.textContent) || idx + 1) : idx + 1;
+            const brandEl = li.querySelector('[class*="brand"i], [class*="tx-brand"i]');
+            const brand   = brandEl?.textContent?.trim() || '';
+            const nameEl  = li.querySelector('[class*="name"i] span, [class*="name"i]');
+            const name    = nameEl?.textContent?.trim() || '';
+            return { rank, name, brand, price, url: link?.href || '' };
+        })
+    };
+}
+"""
 
 
 def crawl_oliveyoung() -> list[dict]:
@@ -13,55 +45,43 @@ def crawl_oliveyoung() -> list[dict]:
     with sync_playwright() as pw:
         browser, context, page = new_page(pw)
         try:
+            stealth_sync(page)  # Cloudflare 우회
+
             page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
+            page.wait_for_timeout(3000)
             save_screenshot(page, "oliveyoung_loaded")
 
-            # 올리브영은 성인 확인 팝업이 뜰 수 있음
+            # 팝업 닫기 시도
             try:
-                popup = page.query_selector("button[class*='close'], .layer-close, .btn-close")
+                popup = page.query_selector(".btn-close, .layer-close, [class*='close']")
                 if popup:
                     popup.click()
                     page.wait_for_timeout(500)
             except Exception:
                 pass
 
-            try:
-                page.wait_for_selector(CFG["wait_selector"], timeout=TIMEOUT)
-            except PWTimeout:
-                save_screenshot(page, "oliveyoung_timeout")
-                print("  [올리브영] 셀렉터 대기 시간 초과 — config.py의 wait_selector 확인 필요")
+            data = page.evaluate(_JS)
+
+            if data.get("error"):
+                save_screenshot(page, "oliveyoung_no_products")
+                print(f"  [올리브영] 상품 없음 — {data['error']}")
                 return []
 
-            items = page.query_selector_all(CFG["item"])[:TOP_N]
-
-            if not items:
-                save_screenshot(page, "oliveyoung_no_items")
-                print("  [올리브영] 상품 목록을 찾지 못했습니다 — config.py의 item 셀렉터 확인 필요")
-                return []
-
-            for i, item in enumerate(items, start=1):
-                rank_text = extract_text(page, item, CFG["rank"])
-                rank = int(rank_text) if rank_text.isdigit() else i
-
-                name = extract_text(page, item, CFG["name"])
-                brand = extract_text(page, item, CFG["brand"])
-                price_raw = extract_text(page, item, CFG["price"])
-                url = extract_link(page, item, CFG["link"], BASE_URL)
-
+            for item in data["items"]:
                 results.append({
                     "카테고리": CFG["category"],
-                    "순위": rank,
-                    "상품명": name,
-                    "브랜드": brand,
-                    "가격": clean_price(price_raw),
-                    "상품URL": url,
+                    "순위": item["rank"],
+                    "상품명": item["name"],
+                    "브랜드": item["brand"],
+                    "가격": clean_price(item["price"]),
+                    "상품URL": item["url"],
                 })
 
             print(f"  [올리브영] {len(results)}개 수집 완료")
 
         except Exception as e:
             save_screenshot(page, "oliveyoung_error")
-            print(f"  [올리브영] 오류 발생: {e}")
+            print(f"  [올리브영] 오류: {e}")
         finally:
             browser.close()
 

@@ -1,9 +1,56 @@
-from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from playwright.sync_api import sync_playwright
 from .config import PLATFORMS, TIMEOUT, TOP_N
-from .base import new_page, extract_text, extract_link, clean_price, save_screenshot
+from .base import new_page, clean_price, save_screenshot
 
 CFG = PLATFORMS["daiso"]
 BASE_URL = "https://www.daisomall.co.kr"
+
+# "실시간 랭킹" 텍스트를 포함한 섹션을 찾아 JS로 직접 추출
+_JS = """
+() => {
+    // 1) "실시간 랭킹" 텍스트 근처 컨테이너 찾기
+    let container = null;
+    for (const node of document.querySelectorAll('*')) {
+        if (node.childElementCount === 0) {
+            const t = node.textContent.trim();
+            if (t.includes('실시간') && t.includes('랭킹')) {
+                let p = node.parentElement;
+                for (let i = 0; i < 10; i++) {
+                    if (!p) break;
+                    if (p.querySelectorAll('li').length >= 5) { container = p; break; }
+                    p = p.parentElement;
+                }
+                if (container) break;
+            }
+        }
+    }
+
+    // 2) 못 찾으면 일반 셀렉터 폴백
+    if (!container) {
+        for (const sel of ['.rnkList', '.rankList', '.ranking-list', '.realRnkList', 'ul.pdList']) {
+            const el = document.querySelector(sel);
+            if (el && el.querySelectorAll('li').length >= 3) { container = el; break; }
+        }
+    }
+
+    if (!container) return { error: 'no_ranking_section' };
+
+    const items = Array.from(container.querySelectorAll('li')).slice(0, 10);
+    return {
+        items: items.map((li, idx) => {
+            const link  = li.querySelector('a[href]');
+            const price = (li.innerText.match(/([\\d,]+)원/) || [])[0] || '';
+            const lines = li.innerText.split(/[\\n\\r]/).map(s => s.trim()).filter(Boolean);
+            const name  = lines
+                .filter(t => t.length > 2 && !/^[\\d,]+원?$/.test(t) && !t.includes('후기') && !t.includes('★'))
+                .sort((a, b) => b.length - a.length)[0] || '';
+            const numEl = li.querySelector('[class*="num"i]');
+            const rank  = numEl ? (parseInt(numEl.textContent) || idx + 1) : idx + 1;
+            return { rank, name, price, url: link?.href || '' };
+        })
+    };
+}
+"""
 
 
 def crawl_daiso() -> list[dict]:
@@ -14,45 +61,31 @@ def crawl_daiso() -> list[dict]:
         browser, context, page = new_page(pw)
         try:
             page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
+            page.wait_for_timeout(2000)
             save_screenshot(page, "daiso_loaded")
 
-            try:
-                page.wait_for_selector(CFG["wait_selector"], timeout=TIMEOUT)
-            except PWTimeout:
-                save_screenshot(page, "daiso_timeout")
-                print("  [다이소] 셀렉터 대기 시간 초과 — config.py의 wait_selector 확인 필요")
+            data = page.evaluate(_JS)
+
+            if data.get("error"):
+                save_screenshot(page, "daiso_no_ranking")
+                print(f"  [다이소] 랭킹 섹션 없음 — {data['error']}")
                 return []
 
-            items = page.query_selector_all(CFG["item"])[:TOP_N]
-
-            if not items:
-                save_screenshot(page, "daiso_no_items")
-                print("  [다이소] 상품 목록을 찾지 못했습니다 — config.py의 item 셀렉터 확인 필요")
-                return []
-
-            for i, item in enumerate(items, start=1):
-                rank_text = extract_text(page, item, CFG["rank"])
-                rank = int(rank_text) if rank_text.isdigit() else i
-
-                name = extract_text(page, item, CFG["name"])
-                brand = extract_text(page, item, CFG["brand"])
-                price_raw = extract_text(page, item, CFG["price"])
-                url = extract_link(page, item, CFG["link"], BASE_URL)
-
+            for item in data["items"]:
                 results.append({
                     "카테고리": CFG["category"],
-                    "순위": rank,
-                    "상품명": name,
-                    "브랜드": brand,
-                    "가격": clean_price(price_raw),
-                    "상품URL": url,
+                    "순위": item["rank"],
+                    "상품명": item["name"],
+                    "브랜드": "다이소",
+                    "가격": clean_price(item["price"]),
+                    "상품URL": item["url"],
                 })
 
             print(f"  [다이소] {len(results)}개 수집 완료")
 
         except Exception as e:
             save_screenshot(page, "daiso_error")
-            print(f"  [다이소] 오류 발생: {e}")
+            print(f"  [다이소] 오류: {e}")
         finally:
             browser.close()
 
