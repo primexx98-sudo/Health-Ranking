@@ -4,15 +4,10 @@
 PLATFORMS = {
     "kakao": {
         "name": "카카오선물하기",
-        "url": "https://gift.kakao.com/category/5/subcategory/99",
-        "category": "건강식품",
-        "wait_selector": "[class*='ranking'], [class*='Ranking'], [class*='prdItem']",
-        "item": "[class*='rankingItem'], [class*='RankingItem'], [class*='ranking_item']",
-        "rank": "[class*='rank']:first-of-type, [class*='Rank']:first-of-type, em.num, .num",
-        "name": "[class*='productName'], [class*='product_name'], [class*='name']",
-        "brand": "[class*='brandName'], [class*='brand_name'], [class*='brand']",
-        "price": "[class*='price']:not([class*='original']):not([class*='Origin'])",
-        "link": "a",
+        "urls": [
+            {"url": "https://gift.kakao.com/category/5/subcategory/99",  "category": "건강식품·영양제"},
+            {"url": "https://gift.kakao.com/category/5/subcategory/100", "category": "홍삼·건강즙"},
+        ],
     },
     "daiso": {
         "name": "다이소몰",
@@ -28,15 +23,8 @@ PLATFORMS = {
     },
     "oliveyoung": {
         "name": "올리브영",
-        "url": "https://www.oliveyoung.co.kr/store/display/getCategoryShop.do?dispCatNo=10000020001",
+        "url": "https://www.oliveyoung.co.kr/store/main/getBestList.do?dispCatNo=900000100100001&fltDispCatNo=10000020001&pageIdx=1&rowsPerPage=10",
         "category": "건강식품",
-        "wait_selector": "#totalPrdList > li, .prd-list > li",
-        "item": "#totalPrdList > li, .prd-list > li",
-        "rank": "span.badge-ranking, .num-rank, .prd-rank strong",
-        "name": "p.prd-name span, .prd_name span, .tx-name",
-        "brand": "span.tx-brand, .brand-name, .prd-brand",
-        "price": "span.price-2 em, .prd-price .price-2 em, .tx-cur",
-        "link": "a.prd-item, .prd-name a, a[href*='goodsNo']",
     },
 }
 

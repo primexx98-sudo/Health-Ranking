@@ -54,7 +54,10 @@ def new_page(playwright, headless: bool = True) -> tuple:
 
 
 def save_screenshot(page: Page, name: str):
-    path = Path("screenshots")
-    path.mkdir(exist_ok=True)
-    page.screenshot(path=str(path / f"{name}.png"), full_page=True)
-    print(f"  스크린샷 저장: screenshots/{name}.png")
+    try:
+        path = Path("screenshots")
+        path.mkdir(exist_ok=True)
+        page.screenshot(path=str(path / f"{name}.png"), full_page=False)
+        print(f"  스크린샷 저장: screenshots/{name}.png")
+    except Exception as e:
+        print(f"  스크린샷 실패 ({name}): {e}")
