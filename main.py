@@ -50,8 +50,10 @@ def main():
     print(f"\n저장 완료: {output_path}")
 
     if failed:
-        print(f"수집 실패 플랫폼: {', '.join(failed)}")
-        sys.exit(1)
+        # 일부 성공 시 데이터는 커밋되도록 exit 0 유지, 경고만 출력
+        print(f"[WARNING] 수집 실패 플랫폼: {', '.join(failed)}")
+        if len(failed) == len(crawlers):
+            sys.exit(1)  # 전부 실패 시만 Actions 빌드 실패 처리
 
 
 if __name__ == "__main__":
