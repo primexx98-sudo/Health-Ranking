@@ -14,6 +14,7 @@ def crawl_kakao() -> list[dict]:
         browser, context, page = new_page(pw)
         try:
             page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
+            save_screenshot(page, "kakao_loaded")
 
             try:
                 page.wait_for_selector(CFG["wait_selector"], timeout=TIMEOUT)

@@ -14,6 +14,7 @@ def crawl_oliveyoung() -> list[dict]:
         browser, context, page = new_page(pw)
         try:
             page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
+            save_screenshot(page, "oliveyoung_loaded")
 
             # 올리브영은 성인 확인 팝업이 뜰 수 있음
             try:
