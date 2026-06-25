@@ -53,12 +53,12 @@ _JS = """
 """
 
 
-def crawl_daiso() -> list[dict]:
+def crawl_daiso(headless: bool = True) -> list[dict]:
     print(f"[다이소몰] 크롤링 시작: {CFG['url']}")
     results = []
 
     with sync_playwright() as pw:
-        browser, context, page = new_page(pw)
+        browser, context, page = new_page(pw, headless=headless)
         try:
             page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
             page.wait_for_timeout(2000)

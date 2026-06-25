@@ -71,12 +71,12 @@ _JS = """
 """
 
 
-def crawl_oliveyoung() -> list[dict]:
+def crawl_oliveyoung(headless: bool = True) -> list[dict]:
     print(f"[올리브영] 크롤링 시작: {CFG['url']}")
     results = []
 
     with sync_playwright() as pw:
-        browser, context, page = new_page(pw)
+        browser, context, page = new_page(pw, headless=headless)
         try:
             stealth_sync(page)
 

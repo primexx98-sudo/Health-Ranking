@@ -54,12 +54,12 @@ _JS = """
 """
 
 
-def crawl_kakao() -> list[dict]:
+def crawl_kakao(headless: bool = True) -> list[dict]:
     print(f"[카카오선물하기] 크롤링 시작: {CFG['url']}")
     results = []
 
     with sync_playwright() as pw:
-        browser, context, page = new_page(pw)
+        browser, context, page = new_page(pw, headless=headless)
         try:
             page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
             page.wait_for_timeout(3000)  # React 렌더링 대기

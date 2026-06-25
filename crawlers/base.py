@@ -37,8 +37,8 @@ def extract_link(page: Page, parent, selector: str, base_url: str = "") -> str:
         return ""
 
 
-def new_page(playwright) -> tuple:
-    browser = playwright.chromium.launch(headless=True)
+def new_page(playwright, headless: bool = True) -> tuple:
+    browser = playwright.chromium.launch(headless=headless)
     context = browser.new_context(
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
