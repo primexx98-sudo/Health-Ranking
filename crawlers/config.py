@@ -6,7 +6,7 @@ PLATFORMS = {
         "name": "카카오선물하기",
         "urls": [
             {"url": "https://gift.kakao.com/category/5/subcategory/99",  "category": "건강식품·영양제"},
-            {"url": "https://gift.kakao.com/category/5/subcategory/100", "category": "홍삼·건강즙"},
+            {"url": "https://gift.kakao.com/category/5/subcategory/100", "category": "다이어트·이너뷰티"},
         ],
     },
     "daiso": {
