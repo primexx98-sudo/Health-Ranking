@@ -77,7 +77,7 @@ def _crawl_one(page, url_cfg: dict) -> list[dict]:
 
 
 def crawl_kakao(headless: bool = True) -> list[dict]:
-    print(f"[카카오선물하기] 크롤링 시작 — {len(CFG['urls'])}개 카테고리")
+    print(f"[카카오선물하기] 크롤링 시작 - {len(CFG['urls'])}개 카테고리")
     results = []
 
     with sync_playwright() as pw:
