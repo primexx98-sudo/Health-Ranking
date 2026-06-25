@@ -74,9 +74,11 @@ def crawl_oliveyoung(headless: bool = True) -> list[dict]:
 
             page.goto(CFG["url"], timeout=60000, wait_until="domcontentloaded")
             save_screenshot(page, "oliveyoung_loaded")
-            page.wait_for_timeout(3000)
+            page.wait_for_timeout(2000)
             page.evaluate("window.scrollTo(0, 600)")
-            page.wait_for_timeout(1500)
+            page.wait_for_timeout(1000)
+            page.evaluate("window.scrollTo(0, 1200)")
+            page.wait_for_timeout(2000)
 
             data = page.evaluate(_JS)
 
