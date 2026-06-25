@@ -1,7 +1,13 @@
 from playwright.sync_api import sync_playwright
-from playwright_stealth import Stealth
 from .config import PLATFORMS, TOP_N
 from .base import new_page, clean_price, save_screenshot
+
+try:                                        # playwright-stealth 2.x
+    from playwright_stealth import Stealth
+    def _apply_stealth(page): Stealth().apply_stealth_sync(page)
+except ImportError:                         # playwright-stealth 1.x
+    from playwright_stealth import stealth_sync
+    def _apply_stealth(page): stealth_sync(page)
 
 CFG = PLATFORMS["oliveyoung"]
 BASE_URL = "https://www.oliveyoung.co.kr"
@@ -70,7 +76,7 @@ def crawl_oliveyoung(headless: bool = True) -> list[dict]:
         browser, context, page = new_page(pw, headless=headless)
         try:
             if headless:
-                Stealth().apply_stealth_sync(page)
+                _apply_stealth(page)
 
             page.goto(CFG["url"], timeout=60000, wait_until="domcontentloaded")
             save_screenshot(page, "oliveyoung_loaded")
