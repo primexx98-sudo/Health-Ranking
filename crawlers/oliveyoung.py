@@ -1,5 +1,5 @@
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth_sync
+from playwright_stealth import Stealth
 from .config import PLATFORMS, TIMEOUT, TOP_N
 from .base import new_page, clean_price, save_screenshot
 
@@ -78,7 +78,7 @@ def crawl_oliveyoung(headless: bool = True) -> list[dict]:
     with sync_playwright() as pw:
         browser, context, page = new_page(pw, headless=headless)
         try:
-            stealth_sync(page)
+            Stealth().apply_stealth_sync(page)
 
             page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
             page.wait_for_timeout(4000)
