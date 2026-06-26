@@ -5,6 +5,9 @@ on:
     - cron: '0 0 1 * *'   # 매월 1일 UTC 00:00 = KST 09:00
   workflow_dispatch:        # 수동 실행
 
+permissions:
+  contents: write
+
 jobs:
   aggregate:
     runs-on: ubuntu-22.04
