@@ -5,52 +5,60 @@ from .base import new_page, clean_price, save_screenshot
 CFG = PLATFORMS["daiso"]
 BASE_URL = "https://www.daisomall.co.kr"
 
-# "실시간 랭킹" 텍스트를 포함한 섹션을 찾아 JS로 직접 추출
-_JS = """
+# a.detail-link[href] 기반 카드 수집
+# - swiper-slide-duplicate(루프 복제) 제외
+# - pdNo 기준 중복 제거
+# - div.product-title : 상품명
+_JS_COLLECT = """
 () => {
-    // 1) "실시간 랭킹" 텍스트 근처 컨테이너 찾기
-    let container = null;
-    for (const node of document.querySelectorAll('*')) {
-        if (node.childElementCount === 0) {
-            const t = node.textContent.trim();
-            if (t.includes('실시간') && t.includes('랭킹')) {
-                let p = node.parentElement;
-                for (let i = 0; i < 10; i++) {
-                    if (!p) break;
-                    if (p.querySelectorAll('li').length >= 5) { container = p; break; }
-                    p = p.parentElement;
-                }
-                if (container) break;
-            }
-        }
+    const seen  = new Set();
+    const cards = [];
+
+    for (const a of document.querySelectorAll('a.detail-link[href]')) {
+        if (a.closest('.swiper-slide-duplicate')) continue;
+
+        const href = a.getAttribute('href') || '';
+        const m    = href.match(/pdNo=([^&]+)/);
+        if (!m) continue;
+
+        const pdNo = m[1];
+        if (seen.has(pdNo)) continue;
+        seen.add(pdNo);
+
+        const nameEl  = a.querySelector('div.product-title');
+        const priceEl = a.querySelector('[class*="price"]');
+        const fullUrl = href.startsWith('http')
+            ? href
+            : 'https://www.daisomall.co.kr' + href;
+
+        cards.push({
+            pdNo,
+            name:  nameEl?.innerText.trim()  || '',
+            price: priceEl?.innerText.trim() || '',
+            url:   fullUrl,
+        });
+        if (cards.length >= 10) break;
     }
-
-    // 2) 못 찾으면 일반 셀렉터 폴백
-    if (!container) {
-        for (const sel of ['.rnkList', '.rankList', '.ranking-list', '.realRnkList', 'ul.pdList']) {
-            const el = document.querySelector(sel);
-            if (el && el.querySelectorAll('li').length >= 3) { container = el; break; }
-        }
-    }
-
-    if (!container) return { error: 'no_ranking_section' };
-
-    const items = Array.from(container.querySelectorAll('li')).slice(0, 10);
-    return {
-        items: items.map((li, idx) => {
-            const link  = li.querySelector('a[href]');
-            const price = (li.innerText.match(/([\\d,]+)원/) || [])[0] || '';
-            const lines = li.innerText.split(/[\\n\\r]/).map(s => s.trim()).filter(Boolean);
-            const name  = lines
-                .filter(t => t.length > 2 && !/^[\\d,]+원?$/.test(t) && !t.includes('후기') && !t.includes('★'))
-                .sort((a, b) => b.length - a.length)[0] || '';
-            const numEl = li.querySelector('[class*="num"i]');
-            const rank  = numEl ? (parseInt(numEl.textContent) || idx + 1) : idx + 1;
-            return { rank, name, price, url: link?.href || '' };
-        })
-    };
+    return { count: cards.length, items: cards };
 }
 """
+
+# 상세페이지에서 브랜드 추출: a.brand-area .detail-title
+_JS_BRAND = """
+() => {
+    const el = document.querySelector('a.brand-area .detail-title');
+    return el ? el.innerText.trim() : '';
+}
+"""
+
+
+def _fetch_brand(page, url: str) -> str:
+    try:
+        page.goto(url, timeout=TIMEOUT, wait_until="domcontentloaded")
+        page.wait_for_timeout(1500)
+        return page.evaluate(_JS_BRAND)
+    except Exception:
+        return ""
 
 
 def crawl_daiso(headless: bool = True) -> list[dict]:
@@ -64,20 +72,43 @@ def crawl_daiso(headless: bool = True) -> list[dict]:
             page.wait_for_timeout(2000)
             save_screenshot(page, "daiso_loaded")
 
-            data = page.evaluate(_JS)
+            data  = page.evaluate(_JS_COLLECT)
+            items = data.get("items", [])
 
-            if data.get("error"):
-                save_screenshot(page, "daiso_no_ranking")
-                print(f"  [다이소] 랭킹 섹션 없음 — {data['error']}")
+            # 10개 미만이면 Next 버튼 클릭 후 재추출 (최대 6회)
+            for _ in range(6):
+                if len(items) >= TOP_N:
+                    break
+                try:
+                    btn = page.query_selector(".swiper-button-next")
+                    if not btn:
+                        break
+                    btn.click()
+                    page.wait_for_timeout(800)
+                    data  = page.evaluate(_JS_COLLECT)
+                    items = data.get("items", [])
+                except Exception:
+                    break
+
+            if not items:
+                save_screenshot(page, "daiso_no_items")
+                print("  [다이소] 상품 없음")
                 return []
 
-            for item in data["items"]:
+            # 각 상품 상세페이지 방문 → 브랜드 추출
+            for idx, item in enumerate(items[:TOP_N]):
+                brand = _fetch_brand(page, item["url"])
+                name  = item["name"]
+                # 브랜드명이 상품명 앞에 중복으로 붙어있으면 제거
+                if brand and name.startswith(brand):
+                    name = name[len(brand):].strip()
+
                 results.append({
                     "카테고리": CFG["category"],
-                    "순위": item["rank"],
-                    "상품명": item["name"],
-                    "브랜드": "다이소",
-                    "가격": clean_price(item["price"]),
+                    "순위":    idx + 1,
+                    "상품명":  name,
+                    "브랜드":  brand,
+                    "가격":    clean_price(item["price"]) if item["price"] else "",
                     "상품URL": item["url"],
                 })
 

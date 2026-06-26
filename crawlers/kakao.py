@@ -4,45 +4,54 @@ from .base import new_page, clean_price, save_screenshot
 
 CFG = PLATFORMS["kakao"]
 
+# gc-product 웹 컴포넌트 기반 추출
+# - span.txt_prdbrand : 브랜드
+# - strong.txt_prdname : 상품명
+# - a.link_prdunit    : 링크
+# - .area_ad/.txt_ad/gc-product-ad-badge : MD추천 광고 → 제외
 _JS = """
 () => {
-    const selectors = [
-        '[class*="GoodsItem"]', '[class*="goodsItem"]',
-        '[class*="ProductItem"]', '[class*="productItem"]',
-        '[class*="PrdItem"]', '[class*="prdItem"]',
-        '.goods-list > li', '.prd-list > li', '.goods_list > li'
-    ];
-
-    let items = [];
-    for (const sel of selectors) {
-        items = Array.from(document.querySelectorAll(sel));
-        if (items.length >= 5) break;
+    function isAd(el) {
+        return !!(el.querySelector(
+            '.area_ad, .txt_ad, gc-product-ad-badge, [class*="ad-badge"]'
+        ));
     }
 
+    // 1순위: gc-product 웹 컴포넌트
+    let items = Array.from(document.querySelectorAll('gc-product'));
+
+    // 2순위: a.link_prdunit 가장 많은 .list_prd 컨테이너의 자식
     if (items.length < 5) {
-        for (const ul of document.querySelectorAll('ul, ol')) {
-            const lis = Array.from(ul.children);
-            if (lis.length >= 8 && lis[0]?.innerText?.includes('원')) {
-                items = lis;
-                break;
-            }
+        let best = null, bestCount = 0;
+        for (const list of document.querySelectorAll('.list_prd, [class*="list_prd"]')) {
+            const cnt = list.querySelectorAll('a.link_prdunit').length;
+            if (cnt > bestCount) { best = list; bestCount = cnt; }
         }
+        if (best) items = Array.from(best.children);
     }
 
     if (items.length === 0) return { error: 'no_products' };
 
-    return {
-        items: Array.from(items).slice(0, 10).map((el, idx) => {
-            const link  = el.querySelector('a[href*="/product/"], a[href*="/goods/"], a[href]');
-            const price = (el.innerText.match(/([\\d,]+)원/) || [])[0] || '';
-            const lines = el.innerText.split(/[\\n\\r]/).map(s => s.trim()).filter(Boolean);
-            const brand = lines.find(t => t.length >= 2 && t.length <= 20 && !/원$/.test(t)) || '';
-            const name  = lines
-                .filter(t => t !== brand && !/^[\\d,]+원?$/.test(t) && !t.includes('후기'))
-                .sort((a, b) => b.length - a.length)[0] || '';
-            return { rank: idx + 1, name, brand, price, url: link?.href || '' };
-        })
-    };
+    const out = [];
+    for (const el of items) {
+        if (isAd(el)) continue;
+
+        const linkEl  = el.querySelector('a.link_prdunit[href]');
+        const brandEl = el.querySelector('span.txt_prdbrand');
+        const nameEl  = el.querySelector('strong.txt_prdname');
+        const priceM  = el.innerText.match(/([\\d,]+)원/);
+        const href    = linkEl?.getAttribute('href') || '';
+
+        out.push({
+            rank:  out.length + 1,
+            brand: brandEl?.innerText.trim() || '',
+            name:  nameEl?.innerText.trim()  || '',
+            price: priceM ? priceM[0] : '',
+            url:   href.startsWith('http') ? href : 'https://gift.kakao.com' + href,
+        });
+        if (out.length >= 10) break;
+    }
+    return out.length ? { items: out } : { error: 'no_valid_items' };
 }
 """
 
@@ -59,17 +68,17 @@ def _crawl_one(page, url_cfg: dict) -> list[dict]:
     data = page.evaluate(_JS)
     if data.get("error"):
         save_screenshot(page, f"kakao_{slug}_no_products")
-        print(f"  [카카오/{category}] 상품 없음")
+        print(f"  [카카오/{category}] 상품 없음 — {data['error']}")
         return []
 
     results = []
     for item in data["items"]:
         results.append({
             "카테고리": category,
-            "순위": item["rank"],
-            "상품명": item["name"],
-            "브랜드": item["brand"],
-            "가격": clean_price(item["price"]),
+            "순위":    item["rank"],
+            "상품명":  item["name"],
+            "브랜드":  item["brand"],
+            "가격":    clean_price(item["price"]),
             "상품URL": item["url"],
         })
     print(f"  [카카오/{category}] {len(results)}개 수집 완료")

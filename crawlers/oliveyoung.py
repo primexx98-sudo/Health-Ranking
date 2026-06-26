@@ -5,11 +5,11 @@ PC 꺼진 상태에서도 GitHub Actions에서 완전 자동 실행 가능
 """
 import re
 from curl_cffi import requests as cf
+from bs4 import BeautifulSoup
 from .config import PLATFORMS, TOP_N
 from .base import clean_price
 
 CFG = PLATFORMS["oliveyoung"]
-
 URL = CFG["url"]
 HEADERS = {
     "User-Agent": (
@@ -22,38 +22,33 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# li 블록 단위 추출
-_LI_RE    = re.compile(r"<li[^>]*>.*?</li>", re.DOTALL)
-_RANK_RE  = re.compile(r"t_number=(\d+)")
-_GOODS_RE = re.compile(r"goodsNo=([A-Z0-9]+)")
-_BRAND_RE = re.compile(r'class="tx_brand">([^<]+)</span>')
-_NAME_RE  = re.compile(r'class="tx_name">([^<]+)</p>')
-_PRICE_RE = re.compile(r'class="tx_cur"><span class="tx_num">([\d,]+)</span>')
-
 
 def _parse(html: str) -> list[dict]:
+    soup = BeautifulSoup(html, "lxml")
     results = []
-    for block in _LI_RE.findall(html):
-        if "Best_Sellingbest" not in block or "t_number=" not in block:
+
+    for li in soup.select("ul.cate_prd_list > li"):
+        brand_el = li.select_one("span.tx_brand")
+        name_el  = li.select_one("p.tx_name")
+        price_el = li.select_one("span.tx_cur .tx_num")
+        link_el  = li.select_one("div.prd_name a[href]")
+
+        if not name_el:
             continue
-        rank_m  = _RANK_RE.search(block)
-        goods_m = _GOODS_RE.search(block)
-        brand_m = _BRAND_RE.search(block)
-        name_m  = _NAME_RE.search(block)
-        price_m = _PRICE_RE.search(block)
-        if not (rank_m and goods_m and name_m):
-            continue
+
+        href   = link_el.get("href", "") if link_el else ""
+        rank_m = re.search(r"t_number=(\d+)", href)
+        url    = href if href.startswith("http") else f"https://www.oliveyoung.co.kr{href}"
+
         results.append({
             "카테고리": CFG["category"],
-            "순위":    int(rank_m.group(1)),
-            "상품명":  name_m.group(1).strip(),
-            "브랜드":  brand_m.group(1).strip() if brand_m else "",
-            "가격":    clean_price(f"{price_m.group(1)}원") if price_m else "",
-            "상품URL": (
-                f"https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do"
-                f"?goodsNo={goods_m.group(1)}"
-            ),
+            "순위":    int(rank_m.group(1)) if rank_m else len(results) + 1,
+            "상품명":  name_el.get_text(strip=True),
+            "브랜드":  brand_el.get_text(strip=True) if brand_el else "",
+            "가격":    clean_price(f"{price_el.get_text(strip=True)}원") if price_el else "",
+            "상품URL": url,
         })
+
     results.sort(key=lambda x: x["순위"])
     return results[:TOP_N]
 
