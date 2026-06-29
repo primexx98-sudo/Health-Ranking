@@ -82,7 +82,7 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 
 | 증상 | 원인 | 조치 |
 |------|------|------|
-| 올리브영 403 | curl_cffi Chrome 버전 구버전 감지 | `oliveyoung.py`의 `impersonate` 최신 버전으로 변경 |
+| 올리브영 403 | curl_cffi Chrome 버전이 Cloudflare에서 차단됨 | `oliveyoung.py`의 `impersonate` 값을 최신 버전으로 변경 (현재: `chrome131`). 지원 버전 확인: `python -c "from curl_cffi.requests import BrowserType; print([b.value for b in BrowserType])"` |
 | 카카오/다이소 상품 0개 | 사이트 HTML 구조 변경 | 해당 크롤러의 `_JS` 변수 내 셀렉터 수정 |
 | 다이소 브랜드 누락 | 상세페이지 셀렉터 변경 | `daiso.py`의 `_JS_BRAND` 내 `a.brand-area .detail-title` 갱신 |
 | Actions push 실패 | PAT 만료 | GitHub에서 재발급 후 remote URL 재설정 |
