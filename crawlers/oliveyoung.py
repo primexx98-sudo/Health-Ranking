@@ -15,7 +15,7 @@ HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
+        "Chrome/146.0.0.0 Safari/537.36"
     ),
     "Referer": "https://www.oliveyoung.co.kr/store/display/getCategoryShop.do?dispCatNo=10000020001",
     "Accept-Language": "ko-KR,ko;q=0.9",
@@ -57,7 +57,7 @@ def crawl_oliveyoung(headless: bool = True) -> list[dict]:
     """headless 인수는 하위 호환을 위해 유지 (curl_cffi 방식에서 미사용)"""
     print(f"[올리브영] 크롤링 시작 (curl_cffi)")
     try:
-        res = cf.get(URL, headers=HEADERS, impersonate="chrome131", timeout=20)
+        res = cf.get(URL, headers=HEADERS, impersonate="chrome146", timeout=20)
         if res.status_code != 200:
             print(f"  [올리브영] HTTP {res.status_code} — 수집 실패")
             return []
