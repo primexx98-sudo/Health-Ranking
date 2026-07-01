@@ -36,4 +36,5 @@ jobs:
           git add data/monthly/
           git diff --cached --quiet && echo "변경 없음" || \
             git commit -m "data: $(date '+%Y-%m') 월별 취합"
+          git pull --rebase
           git push
