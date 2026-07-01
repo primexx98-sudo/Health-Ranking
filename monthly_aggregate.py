@@ -17,7 +17,7 @@ def price_to_int(price_str: str) -> float:
         return 0.0
 
 
-def aggregate_platform(daily_files: list, sheet: str) -> pd.DataFrame:
+def aggregate_platform(daily_files: list, sheet: str, total_days: int) -> pd.DataFrame:
     frames = []
     for f in daily_files:
         try:
@@ -32,14 +32,21 @@ def aggregate_platform(daily_files: list, sheet: str) -> pd.DataFrame:
 
     all_data = pd.concat(frames, ignore_index=True)
     all_data["가격_숫자"] = all_data["가격"].apply(price_to_int)
+    # 일별 점수: 1위=5점, 2위=4.5점 ... 10위=0.5점
+    all_data["일별점수"] = all_data["순위"].apply(lambda r: (11 - r) * 0.5)
 
     grouped = all_data.groupby(["상품명", "브랜드"]).agg(
         평균순위=("순위", "mean"),
         등장횟수=("순위", "count"),
         평균가격_raw=("가격_숫자", "mean"),
+        점수합=("일별점수", "sum"),
     ).reset_index()
 
-    grouped = grouped.sort_values("평균순위").head(10).reset_index(drop=True)
+    # 월간점수 = 평균점수×0.7 + 등장률×5점×0.3  (순위 70% + 꾸준함 30%)
+    grouped["평균점수"] = grouped["점수합"] / grouped["등장횟수"]
+    grouped["등장률"]   = grouped["등장횟수"] / total_days
+    grouped["월간점수"] = grouped["평균점수"] * 0.7 + (grouped["등장률"] * 5) * 0.3
+    grouped = grouped.sort_values("월간점수", ascending=False).head(10).reset_index(drop=True)
     grouped.insert(0, "순위(월평균)", range(1, len(grouped) + 1))
     grouped["평균순위"] = grouped["평균순위"].round(2)
     grouped["평균가격"] = grouped["평균가격_raw"].apply(
@@ -114,7 +121,8 @@ def main():
         print(f"  데이터 없음: {prefix}-*.xlsx 파일이 없습니다")
         return
 
-    print(f"  일별 파일 {len(daily_files)}개 발견")
+    total_days = len(daily_files)  # 실제 수집된 일수 기준
+    print(f"  일별 파일 {total_days}개 발견")
 
     output_path = Path("data/monthly") / f"{prefix}_월별취합.xlsx"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -122,7 +130,7 @@ def main():
     platform_dfs = {}
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         for platform in PLATFORMS:
-            df = aggregate_platform(daily_files, platform)
+            df = aggregate_platform(daily_files, platform, total_days)
             platform_dfs[platform] = df
             write_sheet(writer, platform, df)
 
