@@ -3,7 +3,7 @@
 올리브영 · 다이소몰 · 카카오 선물하기 건강기능식품 TOP10을
 **매일 09:00 KST GitHub Actions가 자동 수집**합니다. PC가 꺼져 있어도 동작합니다.
 
-> 상세 내용은 **설계서.md** 참고
+> 구조·로직 상세는 **설계서.md**, 작업 히스토리는 **기록.md** 참고
 
 ---
 
@@ -49,16 +49,7 @@ python main.py
         └── data/monthly/YYYY-MM_월별취합.xlsx → git push
 ```
 
----
-
-## 수집 대상
-
-| 플랫폼 | 카테고리 | 크롤링 방식 |
-|--------|---------|-------------|
-| 카카오 선물하기 | 건강식품·영양제 (subcategory/99) | Playwright + JS (`gc-product`, `span.txt_prdbrand`, `strong.txt_prdname`) |
-| 카카오 선물하기 | 다이어트·이너뷰티 (subcategory/100) | Playwright + JS (MD추천 광고 자동 제외) |
-| 다이소몰 | 건강식품 실시간 랭킹 | Playwright + JS + 상세페이지 브랜드 보강 |
-| 올리브영 | 건강식품 판매랭킹 | **curl_cffi** + BeautifulSoup (Cloudflare 우회) |
+수집 대상·URL·셀렉터 등 상세는 설계서.md 3장·6장 참고.
 
 ---
 
@@ -80,14 +71,10 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 
 ## 트러블슈팅
 
-| 증상 | 원인 | 조치 |
-|------|------|------|
-| 올리브영 403 | curl_cffi Chrome 버전이 Cloudflare에서 차단됨 | `oliveyoung.py`의 `impersonate` 값을 최신 버전으로 변경 (현재: `chrome146`). 지원 버전 확인: `python -c "from curl_cffi.requests import BrowserType; print([b.value for b in BrowserType])"` |
-| 카카오/다이소 상품 0개 | 사이트 HTML 구조 변경 | 해당 크롤러의 `_JS` 변수 내 셀렉터 수정 |
-| 다이소 브랜드 누락 | 상세페이지 셀렉터 변경 | `daiso.py`의 `_JS_BRAND` 내 `a.brand-area .detail-title` 갱신 |
-| Actions push 실패 | PAT 만료 | GitHub에서 재발급 후 remote URL 재설정 |
-| Actions push 충돌 (`[rejected] fetch first`) | 다른 커밋이 먼저 push됨 | 두 workflow 모두 commit 후 `git pull --rebase` 있는지 확인 |
-| Actions git push 권한 오류 | permissions 누락 | `daily_crawl.yml` / `monthly_aggregate.yml`에 `permissions: contents: write` 확인 |
-| libasound2 오류 | ubuntu-latest 사용 | `daily_crawl.yml`의 `runs-on`을 ubuntu-22.04로 유지 |
-| PermissionError (xlsx) | 파일이 Excel에서 열려있음 | 파일 닫고 재실행 |
-| URL 변경 | 사이트 개편 | `crawlers/config.py`만 수정 |
+문제 발생 시 원인별 조치 파일·수정 위치는 **설계서.md 13장 (유지보수 가이드)** 참고. 자주 나오는 것만 요약:
+
+| 증상 | 조치 |
+|------|------|
+| 올리브영 403 | `oliveyoung.py`의 `impersonate` 버전 갱신 (현재: `chrome146`) |
+| Actions push 충돌/실패 | `git pull --rebase` 포함 여부, PAT 만료 여부 확인 |
+| PermissionError (xlsx) | 파일을 Excel에서 닫고 재실행 |
