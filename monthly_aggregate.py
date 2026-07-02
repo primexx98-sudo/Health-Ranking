@@ -42,6 +42,10 @@ def aggregate_platform(daily_files: list, sheet: str, total_days: int) -> pd.Dat
         점수합=("일별점수", "sum"),
     ).reset_index()
 
+    # 등장횟수 3회 미만인 상품은 월간 랭킹에서 제외 (1~2회 등장한 상품이 평균순위만으로 상위권에 오르는 것 방지)
+    min_appear = min(3, total_days)
+    grouped = grouped[grouped["등장횟수"] >= min_appear]
+
     # 월간점수 = 평균점수×0.7 + 등장률×5점×0.3  (순위 70% + 꾸준함 30%)
     grouped["평균점수"] = grouped["점수합"] / grouped["등장횟수"]
     grouped["등장률"]   = grouped["등장횟수"] / total_days
