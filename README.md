@@ -86,6 +86,7 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 | 카카오/다이소 상품 0개 | 사이트 HTML 구조 변경 | 해당 크롤러의 `_JS` 변수 내 셀렉터 수정 |
 | 다이소 브랜드 누락 | 상세페이지 셀렉터 변경 | `daiso.py`의 `_JS_BRAND` 내 `a.brand-area .detail-title` 갱신 |
 | Actions push 실패 | PAT 만료 | GitHub에서 재발급 후 remote URL 재설정 |
+| Actions push 충돌 (`[rejected] fetch first`) | 다른 커밋이 먼저 push됨 | 두 workflow 모두 commit 후 `git pull --rebase` 있는지 확인 |
 | Actions git push 권한 오류 | permissions 누락 | `daily_crawl.yml` / `monthly_aggregate.yml`에 `permissions: contents: write` 확인 |
 | libasound2 오류 | ubuntu-latest 사용 | `daily_crawl.yml`의 `runs-on`을 ubuntu-22.04로 유지 |
 | PermissionError (xlsx) | 파일이 Excel에서 열려있음 | 파일 닫고 재실행 |
