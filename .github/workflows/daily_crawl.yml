@@ -45,4 +45,5 @@ jobs:
           git add data/daily/
           git diff --cached --quiet && echo "변경 없음" || \
             git commit -m "data: $(date '+%Y-%m-%d') 일별 수집"
+          git pull --rebase
           git push
