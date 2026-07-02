@@ -42,7 +42,7 @@ python main.py
         ├── 다이소몰        Playwright headless (상세페이지 브랜드 보강)
         └── 올리브영        curl_cffi (Cloudflare TLS 우회)
               ↓
-        data/daily/YYYY-MM-DD.xlsx  → git push
+        data/daily/YYYY-MM/YYYY-MM-DD.xlsx  → git push
 
 매월 1일 09:00 KST
   └── GitHub Actions (monthly_aggregate.yml)
@@ -65,8 +65,8 @@ python main.py
 ## 데이터 위치
 
 ```
-data/daily/   YYYY-MM-DD.xlsx       ← 시트 3개: 카카오 / 다이소 / 올리브영
-data/monthly/ YYYY-MM_월별취합.xlsx  ← 월평균순위 TOP10
+data/daily/   YYYY-MM/YYYY-MM-DD.xlsx  ← 시트 4개: 카카오 / 다이소 / 올리브영 / 카테고리통계 (월별 하위폴더)
+data/monthly/ YYYY-MM_월별취합.xlsx     ← 월평균순위 TOP10
 ```
 
 ---

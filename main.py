@@ -83,7 +83,7 @@ def main(output_name: str = ""):
         sys.exit(1)
 
     filename      = output_name if output_name else today
-    output_path   = Path("data/daily") / f"{filename}.xlsx"
+    output_path   = Path("data/daily") / today[:7] / f"{filename}.xlsx"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:

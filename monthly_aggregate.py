@@ -114,11 +114,11 @@ def main():
     prefix = f"{target_year}-{target_month:02d}"
     print(f"===== {prefix} 월별 취합 시작 =====")
 
-    daily_dir  = Path("data/daily")
-    daily_files = sorted(daily_dir.glob(f"{prefix}-*.xlsx"))
+    daily_dir  = Path("data/daily") / prefix
+    daily_files = sorted(daily_dir.glob(f"{prefix}-*.xlsx")) if daily_dir.exists() else []
 
     if not daily_files:
-        print(f"  데이터 없음: {prefix}-*.xlsx 파일이 없습니다")
+        print(f"  데이터 없음: data/daily/{prefix}/ 에 파일이 없습니다")
         return
 
     total_days = len(daily_files)  # 실제 수집된 일수 기준

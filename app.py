@@ -49,7 +49,7 @@ def rank_delta(today_df: pd.DataFrame, prev_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_excel(results: dict, today: str) -> Path:
-    out = DAILY_DIR / f"{today}.xlsx"
+    out = DAILY_DIR / today[:7] / f"{today}.xlsx"
     out.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
         for sheet, data in results.items():
@@ -93,8 +93,8 @@ if page == "오늘 랭킹":
     today     = date.today().isoformat()
     yesterday = (date.today() - timedelta(days=1)).isoformat()
 
-    today_path = DAILY_DIR / f"{today}.xlsx"
-    prev_path  = DAILY_DIR / f"{yesterday}.xlsx"
+    today_path = DAILY_DIR / today[:7] / f"{today}.xlsx"
+    prev_path  = DAILY_DIR / yesterday[:7] / f"{yesterday}.xlsx"
 
     today_data = load_daily(today_path)
     prev_data  = load_daily(prev_path)
@@ -149,7 +149,8 @@ elif page == "월별 리포트":
     # 이번 달 일별 데이터에서 첫 등장일 계산 (신규 진입 판단)
     ym = selected[:7]  # "2026-06"
     prev_ym = (date(int(ym[:4]), int(ym[5:7]), 1) - timedelta(days=1)).strftime("%Y-%m")
-    prev_mon_files = list(DAILY_DIR.glob(f"{prev_ym}-*.xlsx")) if DAILY_DIR.exists() else []
+    prev_mon_dir   = DAILY_DIR / prev_ym
+    prev_mon_files = sorted(prev_mon_dir.glob(f"{prev_ym}-*.xlsx")) if prev_mon_dir.exists() else []
     prev_names: set = set()
     for f in prev_mon_files:
         xl = pd.ExcelFile(f, engine="openpyxl")
