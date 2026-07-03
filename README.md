@@ -78,3 +78,4 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 | 올리브영 403 | `oliveyoung.py`의 `impersonate` 버전 갱신 (현재: `chrome146`) |
 | Actions push 충돌/실패 | `git pull --rebase` 포함 여부, PAT 만료 여부 확인 |
 | PermissionError (xlsx) | 파일을 Excel에서 닫고 재실행 |
+| 월별취합 xlsx 병합 충돌 | Actions가 매월 1일 같은 파일을 재생성해 로컬 push와 충돌 가능. 원본 daily 데이터 동일하면 최신 로직 버전을 채택(설계서.md 13장) |
