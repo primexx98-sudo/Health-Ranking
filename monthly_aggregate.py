@@ -43,10 +43,10 @@ def aggregate_platform(daily_files: list, sheet: str, total_days: int) -> pd.Dat
     ).reset_index()
 
     # 등장횟수 3회 미만인 상품은 월간 랭킹에서 제외 (1~2회 등장한 상품이 평균순위만으로 상위권에 오르는 것 방지)
-    # 단, 필터 후 10개가 안 되면 기준을 2회→1회로 순차 완화해 최종 10개를 채운다
+    # 단, 필터 후 20개가 안 되면 기준을 2회→1회로 순차 완화해 최종 20개를 채운다
     min_appear = min(3, total_days)
     filtered = grouped[grouped["등장횟수"] >= min_appear]
-    while len(filtered) < 10 and min_appear > 1:
+    while len(filtered) < 20 and min_appear > 1:
         min_appear -= 1
         filtered = grouped[grouped["등장횟수"] >= min_appear]
     grouped = filtered
@@ -55,7 +55,7 @@ def aggregate_platform(daily_files: list, sheet: str, total_days: int) -> pd.Dat
     grouped["평균점수"] = grouped["점수합"] / grouped["등장횟수"]
     grouped["등장률"]   = grouped["등장횟수"] / total_days
     grouped["월간점수"] = grouped["평균점수"] * 0.7 + (grouped["등장률"] * 5) * 0.3
-    grouped = grouped.sort_values("월간점수", ascending=False).head(10).reset_index(drop=True)
+    grouped = grouped.sort_values("월간점수", ascending=False).head(20).reset_index(drop=True)
     grouped.insert(0, "순위(월평균)", range(1, len(grouped) + 1))
     grouped["평균순위"] = grouped["평균순위"].round(2)
     grouped["평균가격"] = grouped["평균가격_raw"].apply(

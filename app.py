@@ -170,7 +170,7 @@ elif page == "월별 리포트":
                 df = df.copy()
                 df["신규"] = df["상품명"].apply(lambda n: "🆕" if n not in prev_names else "")
 
-            st.subheader(f"{selected[:7]} 평균순위 TOP10")
+            st.subheader(f"{selected[:7]} 평균순위 TOP20")
             cols = [c for c in ["순위(월평균)", "신규", "상품명", "브랜드", "평균가격", "평균순위", "등장횟수"] if c in df.columns]
             st.dataframe(df[cols], use_container_width=True, hide_index=True)
 
