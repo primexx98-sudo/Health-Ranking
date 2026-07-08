@@ -80,4 +80,4 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 | PermissionError (xlsx) | 파일을 Excel에서 닫고 재실행 |
 | 월별취합 xlsx 병합 충돌 | Actions가 매월 1일 같은 파일을 재생성해 로컬 push와 충돌 가능. 원본 daily 데이터 동일하면 최신 로직 버전을 채택(설계서.md 13장) |
 
-수집 실패 시 GitHub 계정 이메일 + 카카오톡("나에게 보내기")으로 알림이 옵니다. 카카오톡 알림 최초 설정은 설계서.md 8장 참고 (`kakao_get_token.py` 1회 실행 필요).
+수집 실패 시 GitHub 계정 이메일 + 카카오톡("나에게 보내기")으로 알림이 옵니다 (설정 완료, 2026-07-08). 재설정 필요 시 설계서.md 8장 참고 (`kakao_get_token.py` 1회 실행).
