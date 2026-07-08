@@ -8,6 +8,8 @@
   4. 앱 설정 > 카카오 로그인 > 동의항목 > "카카오톡 메시지 전송(talk_message)" 를
      선택 동의로 설정 (앱 소유자 본인 계정은 별도 검수 없이 사용 가능)
   5. 앱 키 > REST API 키를 .env 의 KAKAO_REST_API_KEY 에 저장
+  6. 앱 설정 > 보안 > Client Secret이 "사용함(필수)"이면, 코드 값을
+     .env 의 KAKAO_CLIENT_SECRET 에 저장 ("사용안함"이면 비워둬도 됨)
 
 실행:
   python kakao_get_token.py
@@ -26,7 +28,8 @@ TOKEN_URL    = "https://kauth.kakao.com/oauth/token"
 
 
 def main():
-    rest_api_key = os.environ.get("KAKAO_REST_API_KEY")
+    rest_api_key  = os.environ.get("KAKAO_REST_API_KEY")
+    client_secret = os.environ.get("KAKAO_CLIENT_SECRET")
     if not rest_api_key:
         print("`.env` 에 KAKAO_REST_API_KEY 를 먼저 채워주세요.")
         return
@@ -47,12 +50,16 @@ def main():
 
     code = input("3) 복사한 code 값을 붙여넣으세요: ").strip()
 
-    data = urllib.parse.urlencode({
+    form = {
         "grant_type":    "authorization_code",
         "client_id":      rest_api_key,
         "redirect_uri":   REDIRECT_URI,
         "code":           code,
-    }).encode()
+    }
+    if client_secret:
+        form["client_secret"] = client_secret
+
+    data = urllib.parse.urlencode(form).encode()
     req = urllib.request.Request(TOKEN_URL, data=data)
     with urllib.request.urlopen(req, timeout=15) as res:
         token = json.loads(res.read())
@@ -65,7 +72,9 @@ def main():
     import subprocess
     subprocess.run(["gh", "secret", "set", "KAKAO_REST_API_KEY", "--body", rest_api_key], check=True)
     subprocess.run(["gh", "secret", "set", "KAKAO_REFRESH_TOKEN", "--body", token["refresh_token"]], check=True)
-    print("KAKAO_REST_API_KEY, KAKAO_REFRESH_TOKEN 시크릿 등록 완료.")
+    if client_secret:
+        subprocess.run(["gh", "secret", "set", "KAKAO_CLIENT_SECRET", "--body", client_secret], check=True)
+    print("KAKAO_REST_API_KEY, KAKAO_REFRESH_TOKEN, KAKAO_CLIENT_SECRET 시크릿 등록 완료.")
     print("남은 작업: GH_PAT 시크릿 등록 (README/설계서 참고)")
 
 

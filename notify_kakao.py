@@ -4,6 +4,7 @@ Refresh Token은 사용할 때마다 자동 연장되며, 카카오가 새 Refre
 내려주면 GH_PAT으로 GitHub Secrets(KAKAO_REFRESH_TOKEN)를 갱신한다.
 필요 환경변수: KAKAO_REST_API_KEY, KAKAO_REFRESH_TOKEN, GH_PAT,
               GITHUB_REPOSITORY(Actions 기본 제공), RUN_URL
+              KAKAO_CLIENT_SECRET(카카오 앱의 Client Secret이 "사용함"인 경우 필수)
 """
 import json
 import os
@@ -28,12 +29,15 @@ def _post_form(url: str, data: dict, headers: dict | None = None) -> dict:
         raise
 
 
-def refresh_access_token(rest_api_key: str, refresh_token: str) -> dict:
-    return _post_form(TOKEN_URL, {
+def refresh_access_token(rest_api_key: str, refresh_token: str, client_secret: str = "") -> dict:
+    form = {
         "grant_type":    "refresh_token",
         "client_id":     rest_api_key,
         "refresh_token": refresh_token,
-    })
+    }
+    if client_secret:
+        form["client_secret"] = client_secret
+    return _post_form(TOKEN_URL, form)
 
 
 def send_message(access_token: str, text: str) -> dict:
@@ -57,11 +61,12 @@ def update_refresh_token_secret(repo: str, new_refresh_token: str, gh_pat: str):
 def main():
     rest_api_key  = os.environ["KAKAO_REST_API_KEY"]
     refresh_token = os.environ["KAKAO_REFRESH_TOKEN"]
+    client_secret = os.environ.get("KAKAO_CLIENT_SECRET", "")
     gh_pat        = os.environ["GH_PAT"]
     repo          = os.environ["GITHUB_REPOSITORY"]
     run_url       = os.environ.get("RUN_URL", "")
 
-    token_res = refresh_access_token(rest_api_key, refresh_token)
+    token_res = refresh_access_token(rest_api_key, refresh_token, client_secret)
     access_token = token_res["access_token"]
 
     if new_refresh := token_res.get("refresh_token"):
