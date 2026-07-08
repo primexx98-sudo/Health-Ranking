@@ -100,8 +100,7 @@ def main(output_name: str = ""):
 
     if failed:
         print(f"[WARNING] 수집 실패 플랫폼: {', '.join(failed)}")
-        if len(failed) == len(crawlers):
-            sys.exit(1)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
