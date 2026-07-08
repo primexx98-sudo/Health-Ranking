@@ -48,3 +48,12 @@ jobs:
             git commit -m "data: $(date '+%Y-%m-%d') 일별 수집"
           git pull --rebase
           git push
+
+      - name: 카카오톡 알림 (실패 시)
+        if: failure()
+        env:
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python notify_kakao.py
