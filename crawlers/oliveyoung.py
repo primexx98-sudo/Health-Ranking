@@ -4,10 +4,14 @@ curl_cffi로 Chrome TLS 핑거프린트 모방 → Cloudflare 우회
 PC 꺼진 상태에서도 GitHub Actions에서 완전 자동 실행 가능
 """
 import re
+import time
 from curl_cffi import requests as cf
 from bs4 import BeautifulSoup
 from .config import PLATFORMS, TOP_N
 from .base import clean_price
+
+MAX_RETRIES  = 3
+RETRY_DELAY  = 5  # 초, Cloudflare 간헐적 403 대비 재시도 간격
 
 CFG = PLATFORMS["oliveyoung"]
 URL = CFG["url"]
@@ -56,16 +60,24 @@ def _parse(html: str) -> list[dict]:
 def crawl_oliveyoung(headless: bool = True) -> list[dict]:
     """headless 인수는 하위 호환을 위해 유지 (curl_cffi 방식에서 미사용)"""
     print(f"[올리브영] 크롤링 시작 (curl_cffi)")
-    try:
-        res = cf.get(URL, headers=HEADERS, impersonate="chrome146", timeout=20)
-        if res.status_code != 200:
-            print(f"  [올리브영] HTTP {res.status_code} — 수집 실패")
-            return []
 
-        results = _parse(res.text)
-        print(f"  [올리브영] {len(results)}개 수집 완료")
-        return results
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            res = cf.get(URL, headers=HEADERS, impersonate="chrome146", timeout=20)
+            if res.status_code != 200:
+                print(f"  [올리브영] HTTP {res.status_code} — 시도 {attempt}/{MAX_RETRIES} 실패")
+            else:
+                results = _parse(res.text)
+                if results:
+                    print(f"  [올리브영] {len(results)}개 수집 완료")
+                    return results
+                print(f"  [올리브영] 응답은 200이나 상품 없음 — 시도 {attempt}/{MAX_RETRIES} 실패")
 
-    except Exception as e:
-        print(f"  [올리브영] 오류: {type(e).__name__}: {e}")
-        return []
+        except Exception as e:
+            print(f"  [올리브영] 오류: {type(e).__name__}: {e} — 시도 {attempt}/{MAX_RETRIES} 실패")
+
+        if attempt < MAX_RETRIES:
+            time.sleep(RETRY_DELAY)
+
+    print(f"  [올리브영] {MAX_RETRIES}회 재시도 후 최종 실패")
+    return []
