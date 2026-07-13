@@ -2,9 +2,15 @@
 올리브영 크롤러
 Playwright(헤드리스 브라우저)로 카카오·다이소와 동일한 방식 사용.
 curl_cffi(TLS 흉내만 내는 순수 HTTP 요청)는 JS를 실행하지 않아
-GitHub Actions(Azure 데이터센터 IP)에서 Cloudflare에 고정 차단됨 (2026-07-13 확인,
-동일 코드가 가정용 IP에서는 정상 통과 → IP 평판 + JS 미실행 조합이 원인으로 추정).
-실제 브라우저는 JS 챌린지를 통과할 수 있어 같은 Actions IP에서도 우회 가능.
+GitHub Actions(Azure 데이터센터 IP)에서 Cloudflare에 고정 차단됨.
+
+2026-07-13 검증: Playwright(진짜 브라우저) + playwright-stealth 조합도 여전히 막힘 —
+stealth 제거 후 재테스트해도 동일하게 막혀 브라우저 지문 문제가 아님을 확인.
+가정용 IP는 체크박스 없이 바로 통과하는 반면 Actions IP는 매번 Cloudflare Turnstile
+("사람인지 확인하십시오") 인터랙티브 챌린지를 띄움 → Azure 데이터센터 IP 평판 자체가
+원인. 다이소·카카오는 동일 환경에서 문제없이 통과하므로 올리브영 랭킹 페이지
+(getBestList.do)에만 더 강한 봇 방어가 걸려 있는 것으로 추정.
+대응: Turnstile 체크박스를 Playwright로 직접 클릭하는 로직(_try_pass_turnstile) 추가.
 """
 from playwright.sync_api import sync_playwright
 from .config import PLATFORMS, TIMEOUT, TOP_N
@@ -51,11 +57,30 @@ _JS = """
 """
 
 
+def _try_pass_turnstile(page) -> bool:
+    """Cloudflare Turnstile 체크박스('사람인지 확인하십시오')가 뜬 경우 클릭 시도."""
+    try:
+        frame = page.frame_locator('iframe[src*="challenges.cloudflare.com"]')
+        checkbox = frame.locator('input[type="checkbox"]')
+        checkbox.wait_for(state="visible", timeout=8000)
+        checkbox.click()
+        print("  [올리브영] Turnstile 체크박스 클릭 시도")
+        page.wait_for_load_state("networkidle", timeout=TIMEOUT)
+        page.wait_for_timeout(2000)
+        return True
+    except Exception as e:
+        print(f"  [올리브영] Turnstile 미탐지/처리 불가: {type(e).__name__}: {e}")
+        return False
+
+
 def _crawl_once(page) -> list[dict]:
     page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
     page.wait_for_timeout(2000)
 
     data = page.evaluate(_JS)
+    if data.get("error") and _try_pass_turnstile(page):
+        data = page.evaluate(_JS)
+
     if data.get("error"):
         print(f"  [올리브영] 상품 없음 — {data['error']}")
         return []
