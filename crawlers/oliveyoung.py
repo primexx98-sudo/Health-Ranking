@@ -59,7 +59,15 @@ _JS = """
 
 def _try_pass_turnstile(page) -> bool:
     """Cloudflare Turnstile 체크박스('사람인지 확인하십시오')가 뜬 경우 클릭 시도."""
+    cf_frames = [f for f in page.frames if "challenges.cloudflare.com" in f.url]
     print(f"  [올리브영] DEBUG frames: {[f.url for f in page.frames]}")
+    if cf_frames:
+        try:
+            body_html = cf_frames[0].locator("body").inner_html(timeout=5000)
+            print(f"  [올리브영] DEBUG turnstile frame body (앞 1500자): {body_html[:1500]}")
+        except Exception as e:
+            print(f"  [올리브영] DEBUG body 추출 실패: {type(e).__name__}: {e}")
+
     try:
         frame = page.frame_locator('iframe[src*="challenges.cloudflare.com"]')
         checkbox = frame.locator('input[type="checkbox"]')
