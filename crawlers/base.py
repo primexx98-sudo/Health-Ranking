@@ -1,4 +1,5 @@
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PWTimeout
+from playwright_stealth import Stealth
 from pathlib import Path
 import re
 
@@ -49,6 +50,7 @@ def new_page(playwright, headless: bool = True) -> tuple:
         timezone_id="Asia/Seoul",
         viewport={"width": 1280, "height": 900},
     )
+    Stealth().apply_stealth_sync(context)
     page = context.new_page()
     return browser, context, page
 
