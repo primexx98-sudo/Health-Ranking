@@ -81,3 +81,5 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 | 월별취합 xlsx 병합 충돌 | Actions가 매월 1일 같은 파일을 재생성해 로컬 push와 충돌 가능. 원본 daily 데이터 동일하면 최신 로직 버전을 채택(설계서.md 13장) |
 
 수집 실패 시 GitHub 계정 이메일 + 카카오톡("나에게 보내기")으로 알림이 옵니다 (설정 완료, 2026-07-08). 재설정 필요 시 설계서.md 8장 참고 (`kakao_get_token.py` 1회 실행).
+
+**올리브영이 Cloudflare 차단으로 실패했을 때**: 랭킹 페이지를 직접 캡쳐해서 Claude에게 전달하면, 이미지에서 TOP10을 읽어 `manual_oliveyoung.py`로 그날 xlsx에 반영해줍니다 (설계서.md 8장 참고). 카카오·다이소는 올리브영 실패와 무관하게 항상 정상 수집됩니다.
