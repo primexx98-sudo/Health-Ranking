@@ -82,4 +82,4 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 
 수집 실패 시 GitHub 계정 이메일 + 카카오톡("나에게 보내기")으로 알림이 옵니다 (설정 완료, 2026-07-08). 재설정 필요 시 설계서.md 8장 참고 (`kakao_get_token.py` 1회 실행).
 
-**올리브영이 Cloudflare 차단으로 실패했을 때**: 랭킹 페이지를 직접 캡쳐해서 Claude에게 전달하면, 이미지에서 TOP10을 읽어 `manual_oliveyoung.py`로 그날 xlsx에 반영해줍니다 (설계서.md 8장 참고). 카카오·다이소는 올리브영 실패와 무관하게 항상 정상 수집됩니다.
+**올리브영이 Cloudflare 차단으로 실패했을 때**: `크롤러_실패시.md` + 랭킹 페이지 캡쳐를 Claude에게 함께 전달하면 절차대로 자동 처리됩니다 (상세는 설계서.md 8장). 카카오·다이소는 올리브영 실패와 무관하게 항상 정상 수집됩니다.
