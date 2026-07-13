@@ -40,7 +40,7 @@ python main.py
   └── GitHub Actions (daily_crawl.yml)
         ├── 카카오선물하기  Playwright headless
         ├── 다이소몰        Playwright headless (상세페이지 브랜드 보강)
-        └── 올리브영        curl_cffi (Cloudflare TLS 우회)
+        └── 올리브영        Playwright headless (Cloudflare JS 챌린지 우회)
               ↓
         data/daily/YYYY-MM/YYYY-MM-DD.xlsx  → git push
 
@@ -75,7 +75,7 @@ https://github.com/primexx98-sudo/Health-Ranking/actions
 
 | 증상 | 조치 |
 |------|------|
-| 올리브영 403 | `oliveyoung.py`의 `impersonate` 버전 갱신 (현재: `chrome146`), 간헐적 403은 3회 재시도로 자동 대응 |
+| 올리브영 상품 0개 | Playwright 셀렉터(`ul.cate_prd_list` 등) 확인, 3회 재시도로 일시적 실패는 자동 대응 |
 | Actions push 충돌/실패 | `git pull --rebase` 포함 여부, PAT 만료 여부 확인 |
 | PermissionError (xlsx) | 파일을 Excel에서 닫고 재실행 |
 | 월별취합 xlsx 병합 충돌 | Actions가 매월 1일 같은 파일을 재생성해 로컬 push와 충돌 가능. 원본 daily 데이터 동일하면 최신 로직 버전을 채택(설계서.md 13장) |

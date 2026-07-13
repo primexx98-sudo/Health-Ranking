@@ -1,83 +1,104 @@
 """
 올리브영 크롤러
-curl_cffi로 Chrome TLS 핑거프린트 모방 → Cloudflare 우회
-PC 꺼진 상태에서도 GitHub Actions에서 완전 자동 실행 가능
+Playwright(헤드리스 브라우저)로 카카오·다이소와 동일한 방식 사용.
+curl_cffi(TLS 흉내만 내는 순수 HTTP 요청)는 JS를 실행하지 않아
+GitHub Actions(Azure 데이터센터 IP)에서 Cloudflare에 고정 차단됨 (2026-07-13 확인,
+동일 코드가 가정용 IP에서는 정상 통과 → IP 평판 + JS 미실행 조합이 원인으로 추정).
+실제 브라우저는 JS 챌린지를 통과할 수 있어 같은 Actions IP에서도 우회 가능.
 """
-import re
-import time
-from curl_cffi import requests as cf
-from bs4 import BeautifulSoup
-from .config import PLATFORMS, TOP_N
-from .base import clean_price
-
-MAX_RETRIES  = 3
-RETRY_DELAY  = 5  # 초, Cloudflare 간헐적 403 대비 재시도 간격
+from playwright.sync_api import sync_playwright
+from .config import PLATFORMS, TIMEOUT, TOP_N
+from .base import new_page, clean_price, save_screenshot
 
 CFG = PLATFORMS["oliveyoung"]
-URL = CFG["url"]
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/146.0.0.0 Safari/537.36"
-    ),
-    "Referer": "https://www.oliveyoung.co.kr/store/display/getCategoryShop.do?dispCatNo=10000020001",
-    "Accept-Language": "ko-KR,ko;q=0.9",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+
+MAX_RETRIES = 3
+RETRY_DELAY = 5000  # ms, Cloudflare 간헐적 차단 대비 재시도 간격
+
+# ul.cate_prd_list > li 기반 추출
+# - span.tx_brand  : 브랜드
+# - p.tx_name      : 상품명
+# - span.tx_cur .tx_num : 가격
+# - div.prd_name a[href] : 링크 (href의 t_number= 값이 실제 순위)
+_JS = """
+() => {
+    const items = Array.from(document.querySelectorAll('ul.cate_prd_list > li'));
+    if (items.length === 0) return { error: 'no_products' };
+
+    const out = [];
+    for (const li of items) {
+        const brandEl = li.querySelector('span.tx_brand');
+        const nameEl  = li.querySelector('p.tx_name');
+        const priceEl = li.querySelector('span.tx_cur .tx_num');
+        const linkEl  = li.querySelector('div.prd_name a[href]');
+        if (!nameEl) continue;
+
+        const href = linkEl?.getAttribute('href') || '';
+        const m    = href.match(/t_number=(\\d+)/);
+        const url  = href.startsWith('http') ? href : 'https://www.oliveyoung.co.kr' + href;
+
+        out.push({
+            rank:  m ? parseInt(m[1], 10) : out.length + 1,
+            brand: brandEl?.innerText.trim() || '',
+            name:  nameEl.innerText.trim(),
+            price: priceEl?.innerText.trim() || '',
+            url,
+        });
+    }
+    out.sort((a, b) => a.rank - b.rank);
+    return out.length ? { items: out.slice(0, 10) } : { error: 'no_valid_items' };
 }
+"""
 
 
-def _parse(html: str) -> list[dict]:
-    soup = BeautifulSoup(html, "lxml")
+def _crawl_once(page) -> list[dict]:
+    page.goto(CFG["url"], timeout=TIMEOUT, wait_until="networkidle")
+    page.wait_for_timeout(2000)
+
+    data = page.evaluate(_JS)
+    if data.get("error"):
+        print(f"  [올리브영] 상품 없음 — {data['error']}")
+        return []
+
     results = []
-
-    for li in soup.select("ul.cate_prd_list > li"):
-        brand_el = li.select_one("span.tx_brand")
-        name_el  = li.select_one("p.tx_name")
-        price_el = li.select_one("span.tx_cur .tx_num")
-        link_el  = li.select_one("div.prd_name a[href]")
-
-        if not name_el:
-            continue
-
-        href   = link_el.get("href", "") if link_el else ""
-        rank_m = re.search(r"t_number=(\d+)", href)
-        url    = href if href.startswith("http") else f"https://www.oliveyoung.co.kr{href}"
-
+    for item in data["items"]:
         results.append({
             "카테고리": CFG["category"],
-            "순위":    int(rank_m.group(1)) if rank_m else len(results) + 1,
-            "상품명":  name_el.get_text(strip=True),
-            "브랜드":  brand_el.get_text(strip=True) if brand_el else "",
-            "가격":    clean_price(f"{price_el.get_text(strip=True)}원") if price_el else "",
-            "상품URL": url,
+            "순위":    item["rank"],
+            "상품명":  item["name"],
+            "브랜드":  item["brand"],
+            "가격":    clean_price(f"{item['price']}원") if item["price"] else "",
+            "상품URL": item["url"],
         })
-
-    results.sort(key=lambda x: x["순위"])
     return results[:TOP_N]
 
 
 def crawl_oliveyoung(headless: bool = True) -> list[dict]:
-    """headless 인수는 하위 호환을 위해 유지 (curl_cffi 방식에서 미사용)"""
-    print(f"[올리브영] 크롤링 시작 (curl_cffi)")
+    print(f"[올리브영] 크롤링 시작 (Playwright)")
 
-    for attempt in range(1, MAX_RETRIES + 1):
+    with sync_playwright() as pw:
+        browser, context, page = new_page(pw, headless=headless)
         try:
-            res = cf.get(URL, headers=HEADERS, impersonate="chrome146", timeout=20)
-            if res.status_code != 200:
-                print(f"  [올리브영] HTTP {res.status_code} — 시도 {attempt}/{MAX_RETRIES} 실패")
-            else:
-                results = _parse(res.text)
-                if results:
-                    print(f"  [올리브영] {len(results)}개 수집 완료")
-                    return results
-                print(f"  [올리브영] 응답은 200이나 상품 없음 — 시도 {attempt}/{MAX_RETRIES} 실패")
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    results = _crawl_once(page)
+                    if results:
+                        print(f"  [올리브영] {len(results)}개 수집 완료")
+                        return results
+                    print(f"  [올리브영] 시도 {attempt}/{MAX_RETRIES} 실패")
+                except Exception as e:
+                    print(f"  [올리브영] 오류: {type(e).__name__}: {e} — 시도 {attempt}/{MAX_RETRIES} 실패")
+
+                if attempt < MAX_RETRIES:
+                    page.wait_for_timeout(RETRY_DELAY)
+
+            save_screenshot(page, "oliveyoung_no_items")
+            print(f"  [올리브영] {MAX_RETRIES}회 재시도 후 최종 실패")
+            return []
 
         except Exception as e:
-            print(f"  [올리브영] 오류: {type(e).__name__}: {e} — 시도 {attempt}/{MAX_RETRIES} 실패")
-
-        if attempt < MAX_RETRIES:
-            time.sleep(RETRY_DELAY)
-
-    print(f"  [올리브영] {MAX_RETRIES}회 재시도 후 최종 실패")
-    return []
+            save_screenshot(page, "oliveyoung_error")
+            print(f"  [올리브영] 오류: {type(e).__name__}: {e}")
+            return []
+        finally:
+            browser.close()
