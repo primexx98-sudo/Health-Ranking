@@ -65,6 +65,19 @@ def main(output_name: str = ""):
         "올리브영":       crawl_oliveyoung,
     }
 
+    filename      = output_name if output_name else today
+    output_path   = Path("data/daily") / today[:7] / f"{filename}.xlsx"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 같은 날짜에 이미 저장된 파일이 있으면(예: 로컬 수동 입력 후 자동 실행이 재시도하는 경우)
+    # 이번 실행에서 실패한 플랫폼은 새로 쓰지 않고 기존 시트를 그대로 보존한다.
+    existing_data = {}
+    if output_path.exists():
+        xl = pd.ExcelFile(output_path, engine="openpyxl")
+        for sheet_name in crawlers:
+            if sheet_name in xl.sheet_names:
+                existing_data[sheet_name] = xl.parse(sheet_name).to_dict("records")
+
     results = {}
     failed  = []
 
@@ -75,16 +88,16 @@ def main(output_name: str = ""):
             for item in data:
                 item["카테고리"] = classify(item["상품명"], item.get("브랜드", ""))
             results[sheet_name] = data
+        elif sheet_name in existing_data:
+            print(f"[INFO] {sheet_name} 수집 실패 — 기존 파일의 데이터 유지")
+            results[sheet_name] = existing_data[sheet_name]
+            failed.append(sheet_name)
         else:
             failed.append(sheet_name)
 
     if not results:
         print("모든 플랫폼 수집 실패 — 종료")
         sys.exit(1)
-
-    filename      = output_name if output_name else today
-    output_path   = Path("data/daily") / today[:7] / f"{filename}.xlsx"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         for sheet_name, data in results.items():
